@@ -1,4 +1,4 @@
-const LiveLook = require('./')
+import LiveLook from './'
 
 let livelook = new LiveLook({
   username: 'toadtripler',

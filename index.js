@@ -1,19 +1,21 @@
-const Client = require('./lib/client')
-const DistribPeer = require('./lib/distrib-peer')
-const EventEmitter = require('events').EventEmitter
-const Peer = require('./lib/peer')
-const PeerServer = require('./lib/peer-server')
-const ThrottleGroup = require('stream-throttle').ThrottleGroup
-const buildList = require('./lib/build-list')
-const chokidar = require('chokidar')
-const makeToken = require('./lib/make-token')
-const path = require('path')
-const pkg = require('./package')
-const searchShareList = require('./lib/search-share-list')
-const stream = require('stream')
-const uploadSpeed = require('./lib/upload-speed')
+import path from 'node:path'
+import { EventEmitter } from 'node:stream'
+import stream from 'node:stream'
 
-class LiveLook extends EventEmitter {
+import * as chokidar from 'chokidar'
+import { ThrottleGroup } from 'stream-throttle'
+
+import * as buildList from './lib/build-list'
+import Client from './lib/client'
+import DistribPeer from './lib/distrib-peer'
+import makeToken from './lib/make-token'
+import Peer from './lib/peer'
+import PeerServer from './lib/peer-server'
+import searchShareList from './lib/search-share-list'
+import uploadSpeed from './lib/upload-speed'
+import pkg from './package'
+
+export default class LiveLook extends EventEmitter {
   constructor(args) {
     super()
 
@@ -282,7 +284,7 @@ class LiveLook extends EventEmitter {
 
       this.refreshShareCount()
       this.refreshUploadSpeed()
-      this.autojoin.forEach((room) => this.joinRoom(room))
+      for (const room of this.autojoin) this.joinRoom(room)
 
       if (this.peerServer.connected) {
         return done(null, res)
@@ -604,7 +606,7 @@ class LiveLook extends EventEmitter {
       let shareListTimeout = setTimeout(() => {
         this.removeListener('sharedFileList', onShareList)
         done(new Error('timed out getting share file list for ' + username))
-      }, 15000) // this is a pretty generous time
+      }, 15_000) // this is a pretty generous time
 
       onShareList = (res) => {
         if (res.peer.username === username) {
@@ -633,7 +635,7 @@ class LiveLook extends EventEmitter {
       let searchTimeout = setTimeout(() => {
         this.removeListener('fileSearchResult', onSearchResult)
         done(new Error('timed out searching share file list for ' + username))
-      }, 15000)
+      }, 15_000)
 
       onSearchResult = (res) => {
         // it's unlikely but we could've generated the same token
@@ -861,17 +863,15 @@ class LiveLook extends EventEmitter {
       this.lastBroadcastSearch = Date.now()
     }
 
-    if (username !== 'fourfish') {
-      if (Date.now() - this.lastSelfSearch < 10000) {
-        //console.log('too frequent searching bro');
-        return
-      }
+    if (username !== 'fourfish' && Date.now() - this.lastSelfSearch < 10_000) {
+      //console.log('too frequent searching bro');
+      return
     }
 
     let files = searchShareList.search(this.shareList, query)
 
-    if (files.length) {
-      console.log('found', files.length, ' for ', query)
+    if (files.length > 0) {
+      console.log('found', files.length, 'for', query)
 
       this.getPeerByUsername(username, (err, peer) => {
         if (err) {
@@ -884,7 +884,7 @@ class LiveLook extends EventEmitter {
           username: this.username,
           token,
           fileList: files,
-          slotsFree: !Object.keys(this.uploads).length,
+          slotsFree: Object.keys(this.uploads).length === 0,
           speed: this.uploadSpeed,
           queueSize: 0, // TODO put our real queue size here
         })
@@ -907,14 +907,14 @@ class LiveLook extends EventEmitter {
   }
 
   sendToChildren(type, ...args) {
-    Object.keys(this.childPeers).forEach((ip) => {
+    for (const ip of Object.keys(this.childPeers)) {
       let child = this.childPeers[ip]
       child.send(type, ...args)
-    })
+    }
   }
 
   connectToNextParent() {
-    if (!this.potentialParents.length) {
+    if (this.potentialParents.length === 0) {
       this.client.send('haveNoParent', true)
       this.client.send('acceptChildren', false)
       return
@@ -940,5 +940,3 @@ class LiveLook extends EventEmitter {
     })
   }
 }
-
-module.exports = LiveLook
