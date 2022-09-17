@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "outDir": "./output",
+    "allowJs": true,
+    "lib": ["ES2021"],
+    "module": "CommonJS",
+    "target": "ES2021"
+  },
+  "include": ["./lib/**/*"]
+}
