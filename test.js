@@ -32,7 +32,7 @@ livelook.login((err, res) => {
 
   setTimeout(() => {
     //livelook.getPeerAddress('frogdoubler', console.log);
-    livelook.connectToPeerUsername('fourfish', (err, peer) => {
+    livelook.connectToPeerUsername('fourfish', 'P', (err, peer) => {
       console.log(err, peer)
     })
   }, 1000)

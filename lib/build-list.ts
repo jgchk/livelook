@@ -9,17 +9,44 @@ import { mapSeries } from 'async'
 import { parseFile } from 'music-metadata'
 import * as rr from 'recursive-readdir'
 
-function getMetaData(file, done) {
+export type ShareList =
+  | (Metadata | PartialMetadata)[]
+  | Record<string, (Metadata | PartialMetadata)[]>
+
+export type Metadata = {
+  file: string
+  extension: string
+  size: number
+  bitrate: number
+  duration: number
+  vbr: boolean
+}
+
+export type PartialMetadata = {
+  file: string
+  extension: string
+  size: number
+  bitrate?: number
+  duration?: number
+  vbr?: boolean
+}
+
+function getMetaData(
+  file: string,
+  done: (err: Error | null, metadata?: Metadata | PartialMetadata) => void
+) {
   let found = false
 
   stat(file, (err, stats) => {
-    let populated = { file }
-
     if (err) {
       return done(err)
     }
 
-    populated.size = stats.size
+    const populated: Metadata | PartialMetadata = {
+      file,
+      size: stats.size,
+      extension: extname(file).slice(1),
+    }
 
     parseFile(file)
       .then((metadata) => {
@@ -29,15 +56,14 @@ function getMetaData(file, done) {
 
         found = true
 
-        let vbr = metadata.format.codecProfile
-        vbr = vbr ? /v/i.test(vbr) : false
-
+        const vbr = metadata.format.codecProfile
+        populated.vbr = vbr ? /v/i.test(vbr) : false
         populated.bitrate = Math.floor(metadata.format.bitrate / 1000)
         populated.duration = Math.floor(metadata.format.duration)
-        populated.vbr = vbr
+
         done(null, populated)
       })
-      .catch((error) => {
+      .catch(() => {
         // ignoring because this is likely on a non-media file, and not
         // fatal
         if (!found) {
@@ -50,24 +76,26 @@ function getMetaData(file, done) {
 // absolute attribute is enabled for search results. if false, returns an object
 // keys representing directories containing arrays of files. otherwise just
 // returns the array of files
-function buildFileList(files, absolute = true, done) {
+function buildFileList(
+  files: string[],
+  absolute = true,
+  done: (err: Error | null, fileList?: ShareList) => void
+) {
   mapSeries(files, getMetaData, (err, files) => {
     if (err) {
       return done(err)
     }
 
-    let fileList
+    let fileList: ShareList
 
     if (absolute) {
       fileList = []
 
       for (const file of files) {
-        const fileExt = extname(file.file).slice(1)
-
         fileList.push({
           file: file.file,
           size: file.size,
-          extension: fileExt,
+          extension: file.extension,
           bitrate: file.bitrate,
           duration: file.duration,
           vbr: file.vbr,
@@ -79,7 +107,6 @@ function buildFileList(files, absolute = true, done) {
       for (const file of files) {
         const fileDir = dirname(file.file)
         const fileName = basename(file.file)
-        const fileExt = extname(file.file).slice(1)
 
         if (!fileList[fileDir]) {
           fileList[fileDir] = []
@@ -88,7 +115,7 @@ function buildFileList(files, absolute = true, done) {
         fileList[fileDir].push({
           file: fileName,
           size: file.size,
-          extension: fileExt,
+          extension: file.extension,
           bitrate: file.bitrate,
           duration: file.duration,
           vbr: file.vbr,
@@ -100,7 +127,15 @@ function buildFileList(files, absolute = true, done) {
   })
 }
 
-function buildShareList(dir, done) {
+function buildShareList(
+  dir: string,
+  done: (
+    err: Error | null,
+    fileList?:
+      | (Metadata | PartialMetadata)[]
+      | Record<string, (Metadata | PartialMetadata)[]>
+  ) => void
+) {
   rr(dir, (err, files) => {
     if (err) {
       return done(err)

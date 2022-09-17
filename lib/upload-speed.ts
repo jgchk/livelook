@@ -1,6 +1,6 @@
 import speedTest from 'speedtest-net'
 
-export default (done) => {
+export default (done: (err: Error | null, speed?: number) => void) => {
   /*let test = speedTest({ maxTime: 5000 });
     let finished = false;
 

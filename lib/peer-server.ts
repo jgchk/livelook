@@ -2,20 +2,26 @@
 
 import { EventEmitter } from 'node:events'
 import { Server } from 'node:net'
-import { callbackify } from 'node:util'
 
-import * as getPortBase from 'get-port'
+import * as getPort from 'get-port'
 
+import LiveLook from '..'
 import checkPort from './check-port'
 import DistribPeer from './distrib-peer'
-import Message from './message'
 import fromPeer from './message/from-peer'
-import { bind } from './nat-pmp-map'
+import Message from './message/reader'
+import natpmpmap from './nat-pmp-map'
 import Peer from './peer'
 
-const getPort = callbackify(getPortBase)
-
 class PeerServer extends EventEmitter {
+  port: number
+  maxPeers: number
+  livelook: LiveLook
+  server: Server
+  pmp: any
+  listening: boolean
+  incomingData: Buffer
+
   constructor(args, livelook) {
     super()
 
@@ -34,7 +40,7 @@ class PeerServer extends EventEmitter {
     })
 
     this.server.on('listening', () => {
-      console.log('peer server is listening on port ' + this.port)
+      console.log(`peer server is listening on port ${this.port}`)
       this.emit('listening')
       this.listening = true
     })
@@ -44,12 +50,13 @@ class PeerServer extends EventEmitter {
     this.server.on('connection', (socket) => {
       // TODO check for banned IPs
 
-      let errorListener = (err) => this.emit('error', err)
+      // eslint-disable-next-line unicorn/consistent-function-scoping
+      const errorListener = (err: Error) => this.emit('error', err)
       socket.on('error', errorListener)
 
       let length
 
-      let dataListener = (data) => {
+      const dataListener = (data) => {
         this.incomingData = Buffer.concat([this.incomingData, data])
         //console.log(this.incomingData);
 
@@ -63,9 +70,9 @@ class PeerServer extends EventEmitter {
           socket.removeListener('data', dataListener)
           socket.removeListener('error', errorListener)
 
-          let id = this.incomingData[0]
+          const id = this.incomingData[0]
           console.log('peer server client id', id)
-          let message = new Message(this.incomingData.slice(1))
+          const message = new Message(this.incomingData.slice(1))
 
           let decoded
 
@@ -88,7 +95,7 @@ class PeerServer extends EventEmitter {
 
             // TODO peer limit
 
-            let peer
+            let peer: Peer | DistribPeer
 
             if (cType === 'P') {
               peer = new Peer(socket)
@@ -104,7 +111,7 @@ class PeerServer extends EventEmitter {
               // this is probably not optional here
               peer.pierceFirewall()
 
-              let nextData = this.incomingData.slice(length)
+              const nextData = this.incomingData.slice(length)
               peer.socket.emit('data', nextData)
             })
           } else if (decoded.type === 'peerInit') {
@@ -134,7 +141,7 @@ class PeerServer extends EventEmitter {
               // the next message is usually stuck to the initial
               // buffer, so we can re-send it to make sure our
               // message emitter reads it
-              let nextData = this.incomingData.slice(length)
+              const nextData = this.incomingData.slice(length)
               peer.socket.emit('data', nextData)
             })
           }
@@ -148,7 +155,7 @@ class PeerServer extends EventEmitter {
   }
 
   natPmpMap(done) {
-    bind(this)((err, res) => {
+    natpmpmap.bind(this)((err, res) => {
       if (err) {
         this.emit('error', err)
         return done(err)
@@ -160,7 +167,7 @@ class PeerServer extends EventEmitter {
             done(err)
             this.emit('error', err)
           } else if (!open) {
-            let err = new Error(
+            const err = new Error(
               'we used pmp but soulseek ' + "still can't see us"
             )
             this.emit('error', err)
@@ -173,40 +180,40 @@ class PeerServer extends EventEmitter {
     })
   }
 
-  init(done) {
-    getPort({ port: this.port }, (err, port) => {
-      if (err) {
-        this.emit('error', err)
-        return done(err)
-      }
+  init(done: (err?: Error | null) => void) {
+    getPort({ port: this.port })
+      .then((port) => {
+        this.port = port
+        this.emit('waitPort', this.port)
 
-      this.port = port
-      this.emit('waitPort', this.port)
+        const listenTimeout = setTimeout(() => {
+          const err = new Error('timed out with peer server listen')
+          this.emit('error', err)
+          done(err)
+        }, 5000)
 
-      let listenTimeout = setTimeout(() => {
-        let err = new Error('timed out with peer server listen')
-        this.emit('error', err)
-        done(err)
-      }, 5000)
+        // TODO if connect finishes afer the setTimeout, done might get
+        // called again
 
-      // TODO if connect finishes afer the setTimeout, done might get
-      // called again
+        this.server.listen(this.port, () => {
+          clearTimeout(listenTimeout)
 
-      this.server.listen(this.port, () => {
-        clearTimeout(listenTimeout)
-
-        checkPort(this.port, (err, open) => {
-          if (err) {
-            done(err)
-          } else if (!open) {
-            this.server.close()
-            this.natPmpMap(done)
-          } else {
-            done()
-          }
+          checkPort(this.port, (err, open) => {
+            if (err) {
+              done(err)
+            } else if (!open) {
+              this.server.close()
+              this.natPmpMap(done)
+            } else {
+              done()
+            }
+          })
         })
       })
-    })
+      .catch((error) => {
+        this.emit('error', error)
+        return done(error)
+      })
   }
 }
 

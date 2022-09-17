@@ -2,7 +2,10 @@
 
 import { get } from 'node:http'
 
-export default (port, done) => {
+export default (
+  port: number,
+  done: (err: Error | null, open?: boolean) => void
+) => {
   const url = `http://tools.slsknet.org/porttest.php?port=${port}`
   let finished = false
 

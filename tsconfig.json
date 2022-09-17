@@ -6,8 +6,9 @@
     "module": "CommonJS",
     "target": "ES2021",
     "skipLibCheck": true,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true
   },
-  "include": ["index.js", "./lib/**/*"],
+  "include": ["index.ts", "./lib/**/*"],
   "exclude": ["./node_modules/"]
 }
