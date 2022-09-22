@@ -73,6 +73,7 @@ npm manifest:
     "dependencies": {
       "@types/async": "^3.2.15",
       "@types/recursive-readdir": "^2.2.1",
+      "@types/stream-throttle": "^0.1.1",
       "async": "^2.6.2",
       "chokidar": "^3.0.0",
       "get-port": "^5.0.0",
@@ -351,6 +352,13 @@ Lockfile:
     version "2.2.1"
     resolved "https://registry.yarnpkg.com/@types/recursive-readdir/-/recursive-readdir-2.2.1.tgz#330f5ec0b73e8aeaf267a6e056884e393f3543a3"
     integrity sha512-Xd+Ptc4/F2ueInqy5yK2FI5FxtwwbX2+VZpcg+9oYsFJVen8qQKGapCr+Bi5wQtHU1cTXT8s+07lo/nKPgu8Gg==
+    dependencies:
+      "@types/node" "*"
+  
+  "@types/stream-throttle@^0.1.1":
+    version "0.1.1"
+    resolved "https://registry.yarnpkg.com/@types/stream-throttle/-/stream-throttle-0.1.1.tgz#520b60df5b8138f7180920891149ad2d99ce9cdf"
+    integrity sha512-blC1VrTJBPET4IDEpRO05L0ks7cqyyc4XBRnQVroOLkcE8iaG6MYEQ/RSU7CQ3uIGk4r7wEH0W3ifbQqCVJVAA==
     dependencies:
       "@types/node" "*"
   

@@ -6,7 +6,6 @@ import * as chokidar from 'chokidar'
 import { ThrottleGroup } from 'stream-throttle'
 
 import * as buildList from './lib/build-list'
-import { PartialMetadata } from './lib/build-list'
 import Client from './lib/client'
 import DistribPeer from './lib/distrib-peer'
 import makeToken from './lib/make-token'
@@ -14,12 +13,8 @@ import Peer from './lib/peer'
 import PeerServer from './lib/peer-server'
 import * as searchShareList from './lib/search-share-list'
 import uploadSpeed from './lib/upload-speed'
+import { Address } from './lib/utils'
 import pkg from './package.json'
-
-type PeerAddress = {
-  ip: string
-  port: number
-}
 
 type ConnType = string
 
@@ -48,7 +43,7 @@ export default class LiveLook extends EventEmitter {
   branchLevel: number
   branchRoot: string
   maxChildren: number
-  peerAddresses: Record<string, PeerAddress>
+  peerAddresses: Record<string, Address>
   uploads: any
   downloads: any
   uploadQueue: any
@@ -371,12 +366,12 @@ export default class LiveLook extends EventEmitter {
     this.client.send('sayChatroom', room, message)
   }
 
-  leaveChatroom(room: string) {
-    this.client.send('leaveChatroom', room)
-  }
-
   joinRoom(room: string) {
     this.client.send('joinRoom', room)
+  }
+
+  leaveRoom(room: string) {
+    this.client.send('leaveRoom', room)
   }
 
   messageUser(username: string, message: string) {
@@ -482,7 +477,7 @@ export default class LiveLook extends EventEmitter {
   // get the ip and address of a user from their username
   getPeerAddress(
     username: string,
-    done: (err: Error | null, peerAddress?: PeerAddress) => void
+    done: (err: Error | null, peerAddress?: Address) => void
   ) {
     if (this.peerAddresses[username]) {
       return done(null, this.peerAddresses[username])
@@ -513,7 +508,7 @@ export default class LiveLook extends EventEmitter {
 
   // connect to a peer from an IP address and port (and token if available)
   connectToPeerAddress(
-    address: PeerAddress,
+    address: Address,
     cType: ConnType,
     done: (err: Error | null, peer?: any) => void
   ) {

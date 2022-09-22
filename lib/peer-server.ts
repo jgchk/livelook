@@ -4,13 +4,14 @@ import { EventEmitter } from 'node:events'
 import { Server } from 'node:net'
 
 import * as getPort from 'get-port'
+import { connect } from 'nat-pmp'
+import { get_gateway_ip } from 'network'
 
 import LiveLook from '..'
 import checkPort from './check-port'
 import DistribPeer from './distrib-peer'
 import fromPeer from './message/from-peer'
 import Message from './message/reader'
-import natpmpmap from './nat-pmp-map'
 import Peer from './peer'
 
 class PeerServer extends EventEmitter {
@@ -154,29 +155,44 @@ class PeerServer extends EventEmitter {
     this.server.on('error', (err) => this.emit('error', err))
   }
 
-  natPmpMap(done) {
-    natpmpmap.bind(this)((err, res) => {
+  natPmpMap(done: (err: Error | null) => void) {
+    get_gateway_ip((err: Error | null, gateway: string) => {
       if (err) {
         this.emit('error', err)
         return done(err)
       }
 
-      this.server.listen(this.pmp.private, () => {
-        checkPort(this.port, (err, open) => {
-          if (err) {
-            done(err)
-            this.emit('error', err)
-          } else if (!open) {
-            const err = new Error(
-              'we used pmp but soulseek ' + "still can't see us"
-            )
-            this.emit('error', err)
-            done(err)
-          } else {
-            done()
+      const natpmpClient = connect(gateway)
+      natpmpClient.on('error', (error) => this.emit('error', err))
+
+      const natpmpTimeout = setTimeout(() => {
+        natpmpClient.close()
+        const err = new Error(
+          'unable to connect to nat-pmp. try enabling ' +
+            `upnp or forward port ${this.port} at http://${gateway}`
+        )
+        this.emit('error', err)
+        done(err)
+      }, 5000)
+
+      natpmpClient.portMapping(
+        {
+          private: this.port,
+          public: this.port,
+          ttl: 3600, // TODO obv increase this
+        },
+        (err, res) => {
+          clearTimeout(natpmpTimeout)
+          natpmpClient.close()
+
+          if (!err) {
+            this.pmp = res
+            this.emit('waitPort', this.pmp.public)
           }
-        })
-      })
+
+          done(err)
+        }
+      )
     })
   }
 
