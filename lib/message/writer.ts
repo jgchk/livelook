@@ -9,7 +9,7 @@ export default class MessageWriter {
     this.pointer = 0
   }
 
-  int8(val: number) {
+  int8(val: number | boolean) {
     return this.write8(val)
   }
 
@@ -49,9 +49,13 @@ export default class MessageWriter {
     this.pointer += val
   }
 
-  write8(val: number) {
+  write8(val: number | boolean) {
     const b = Buffer.alloc(1)
-    b.writeUInt8(val, 0)
+    if (typeof val === 'number') {
+      b.writeUInt8(val, 0)
+    } else {
+      b.writeUInt8(val ? 1 : 0, 0)
+    }
     this.data = Buffer.concat([this.data, b])
     this.pointer += 1
     return this

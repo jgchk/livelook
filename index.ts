@@ -13,10 +13,8 @@ import Peer from './lib/peer'
 import PeerServer from './lib/peer-server'
 import * as searchShareList from './lib/search-share-list'
 import uploadSpeed from './lib/upload-speed'
-import { Address } from './lib/utils'
+import { Address, ConnType } from './lib/utils'
 import pkg from './package.json'
-
-type ConnType = string
 
 export default class LiveLook extends EventEmitter {
   username: string
